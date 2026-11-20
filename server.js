@@ -1,3 +1,5 @@
+try { process.loadEnvFile(); } catch (e) {}
+const SCAN_KEY = process.env.SCAN_KEY || '';
 const express = require('express');
 const db = require('./db');
 
@@ -12,9 +14,21 @@ app.post('/api/login', login);
 app.post('/api/logout', logout);
 app.get('/api/me', me);
 
-// Everything else under /api needs a login. The only exception is the card scan route.
+// ESP32 connection test
+app.get('/api/device/ping', (req, res) => {
+  res.json({
+    success: true,
+    message: "UENR Attendance System connected!",
+    device: "ESP32"
+  });
+});
+
+// Everything under /api needs a login, except scans that carry the secret reader key.
 app.use('/api', (req, res, next) => {
-  if (req.method === 'POST' && req.path === '/scan') return next();
+  if (req.method === 'POST' && req.path === '/scan' &&
+      SCAN_KEY && req.headers['x-scan-key'] === SCAN_KEY) {
+    return next();
+  }
   requireAdmin(req, res, next);
 });
 
@@ -211,6 +225,9 @@ app.get('/api/export.csv', (req, res) => {
   res.send('\uFEFF' + lines.join('\r\n'));
 });
 
-app.listen(3000, () => {
-  console.log('Server running at http://localhost:3000');
+
+
+app.listen(3000, "0.0.0.0", () => {
+  console.log("Server running on port 3000");
+  console.log("Ready for ESP32 connections");
 });
